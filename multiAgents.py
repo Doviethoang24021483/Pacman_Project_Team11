@@ -98,7 +98,7 @@ class ReflexAgent(Agent):
 
             score -= 10
         
-        return score 
+        return score
 
 def scoreEvaluationFunction(currentGameState: GameState):
     """
