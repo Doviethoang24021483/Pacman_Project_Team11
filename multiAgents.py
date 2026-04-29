@@ -81,8 +81,8 @@ class ReflexAgent(Agent):
               disToGhost = util.manhattanDistance(newPos, ghostState.getPosition())
               if disToGhost < 1:
                   return -999999
-              elif disToGhost < 5:
-                  score -= 100.0 / disToGhost 
+              elif disToGhost < 3:
+                  score -= 40.0 / disToGhost 
         # 3. Tìm hạt đậu gần nhất và cộng điểm thưởng nghịch đảo
 
         foodList = newFood.asList()
@@ -264,7 +264,40 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        bestScore = float('-inf')
+        bestAction = None
+        numAgents = gameState.getNumAgents()
+
+        for action in gameState.getLegalActions(self.index):
+            successor = gameState.generateSuccessor(self.index, action)
+            score = self.expectimax(successor, 1, self.depth, numAgents)
+            if score > bestScore:
+                bestScore = score
+                bestAction = action
+
+        return bestAction
+    def expectimax(self, gameState: GameState, agentIndex, depth, numAgents):
+        if  depth == 0 or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+        actions = gameState.getLegalActions(agentIndex)
+
+        nextAgentIndex = (agentIndex + 1) % numAgents
+        nextDepth = depth - 1 if nextAgentIndex == 0 else depth     # mỗi khi quay lại Pacman, giảm độ sâu đi 1
+
+        if agentIndex == 0:                                         # Pacman (max)
+            bestScore = float('-inf')
+            for action in actions:
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.expectimax(successor, nextAgentIndex, nextDepth, numAgents)
+                bestScore = max(bestScore, score)
+            return bestScore
+        else:                                                       # Ghost (min)
+            total_bestscore = 0
+            probability = 1/len(actions)
+            for action in actions:
+                successor = gameState.generateSuccessor(agentIndex, action)
+                total_bestscore += self.expectimax(successor, nextAgentIndex, nextDepth, numAgents)
+            return total_bestscore*probability
 
 def betterEvaluationFunction(currentGameState: GameState):
     """
