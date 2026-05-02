@@ -312,26 +312,65 @@ def betterEvaluationFunction(currentGameState: GameState):
     ghostStates = currentGameState.getGhostStates()
     capsules = currentGameState.getCapsules()
     score = currentGameState.getScore()
-    if len(foodList) > 0:
-        foodDistances = [util.manhattanDistance(pos, food) for food in foodList]
-        closestFoodDist = min(foodDistances)
-        score += 1.0 / float(closestFoodDist)
+    walls = currentGameState.getWalls()
+
+    distMap = bfsPreCompute(walls,pos)
+
+    if foodList:
+        avg_x = sum([f[0] for f in foodList]) / len(foodList)
+        avg_y = sum([f[1] for f in foodList]) / len(foodList)
+
+        dist_to_center = abs(pos[0] - avg_x) + abs(pos[1] - avg_y)
+
+        score += 1.0 / (dist_to_center + 0.1)
+
+        minFoodDist = min(distMap.get(f, 999) for f in foodList)
+        score += 1.0 / (minFoodDist + 0.1)
     score -= 10 * len(foodList)
     score -= 20 * len(capsules)
-    for ghostState in ghostStates:
-        ghostPos = ghostState.getPosition()
-        scaredTimer = ghostState.scaredTimer
-        dist = util.manhattanDistance(pos, ghostPos)
-        if scaredTimer == 0: 
-            if dist <= 1:
-                score -= 9999 
+    for gs in ghostStates:
+        ghostPos = gs.getPosition()
+
+        ghostCell = (int(ghostPos[0]), int(ghostPos[1]))
+        d = distMap.get(ghostCell, 999)
+        if gs.scaredTimer == 0:
+            if d <= 1:
+                score -= 9999
             else:
-                score -= 2.0 / float(dist)        
-        else: 
-            if dist <= scaredTimer: 
-                score += 200.0 / float(dist + 0.1)
+                score -= 2.0 / d
+        else:
+            if d <= gs.scaredTimer:
+                score += 100.0 / (d + 0.1)
+    
     return score
     util.raiseNotDefined()
 
+
+# Helper function for betterEvaluationFunction
+dist = {}
+def bfsPreCompute(walls,pos):
+    if pos in dist:
+        return dist[pos]
+    
+    queue = util.Queue()
+
+    start_pos = pos
+    queue.push(start_pos)
+    
+    visited = {}
+    visited[start_pos] = 0
+    
+    while queue.isEmpty() == False:
+        curr = queue.pop()
+        
+        for(dx, dy) in [(0,1),(1,0),(-1,0),(0,-1)]:
+            next = (curr[0] + dx, curr[1] + dy)
+            if next not in visited and not walls[next[0]][next[1]]:
+                visited[next] = visited[curr] + 1
+                queue.push(next)
+    
+    dist[pos] = visited
+    return dist[pos]
+        
 # Abbreviation
 better = betterEvaluationFunction
