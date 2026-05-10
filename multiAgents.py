@@ -343,8 +343,79 @@ def betterEvaluationFunction(currentGameState: GameState):
                 score += 100.0 / (d + 0.1)
     
     return score
-    util.raiseNotDefined()
+    
+def riskAwareEvaluationFunction(currentGameState: GameState):
+    """
+    Extended risk-aware evaluation function.
 
+    DESCRIPTION: Extension of betterEvaluationFunction with additional risk factors:
+        1. Penalizes states with fewer legal moves when ghosts are nearby.
+        2. Penalizes states where Pacman is close to multiple active ghosts.
+    """
+
+    pos = currentGameState.getPacmanPosition()
+    foodList = currentGameState.getFood().asList()
+    numFood = len(foodList)
+    ghostStates = currentGameState.getGhostStates()
+    capsules = currentGameState.getCapsules()
+    score = currentGameState.getScore()
+    walls = currentGameState.getWalls()
+
+    distMap = bfsPreCompute(walls,pos)
+
+    risk_multiplier = 1.0
+    if numFood <= 3:
+        risk_multiplier = 0.25 # Chấp nhận rủi ro cao khi sắp thắng
+    elif numFood <= 10:
+        risk_multiplier = 0.5 # Chấp nhận rủi ro vừa phải khi còn ít hạt đậu
+
+    if foodList:
+        avg_x = sum([f[0] for f in foodList]) / len(foodList)
+        avg_y = sum([f[1] for f in foodList]) / len(foodList)
+        dist_to_center = abs(pos[0] - avg_x) + abs(pos[1] - avg_y) # Khoảng cách đến trung tâm các hạt đậu
+        score += 1.0 / (dist_to_center + 0.1)
+
+        minFoodDist = min(distMap.get(f, 999) for f in foodList)
+        score += 10.0 / (minFoodDist + 0.1)
+
+    score -= 10 * numFood # Phạt dựa trên số lượng hạt đậu còn lại
+    score -= 20 * len(capsules) # Phạt nhiều hơn đối với capsule
+
+    active_ghost_dist = []
+
+    for gs in ghostStates:
+        ghostPos = gs.getPosition()
+        ghostCell = (int(ghostPos[0]), int(ghostPos[1]))  # Tọa độ bằng số nguyên
+        d = distMap.get(ghostCell, 999)
+
+        if gs.scaredTimer == 0:
+            active_ghost_dist.append(d)
+            if d <= 1:
+                score -= 9999
+            elif d <= 5:
+                score -= (2.0 / d) * risk_multiplier # Mức phạt tùy vào giai đoạn game
+        else:
+            if d <= gs.scaredTimer:
+                score += 100.0 / (d + 0.1)
+
+    active_ghost_dist.sort()
+
+    legalMoves = currentGameState.getLegalActions(0)
+    numMoves = len(legalMoves)
+
+    if numMoves <= 2:
+        if active_ghost_dist:
+            closest_ghost = active_ghost_dist[0]
+            if closest_ghost <= 3:
+                score -= 500 * risk_multiplier # Rủi ro có ma ở gần và ít lựa chọn di chuyển
+
+    if len(active_ghost_dist) >= 2:
+        closest = active_ghost_dist[0]
+        second_closest = active_ghost_dist[1]
+        if closest < 5 and second_closest < 5:
+            score -= 1000 * risk_multiplier # Rủi ro bị kẹp giữa 2 con ma
+
+    return score
 
 # Helper function for betterEvaluationFunction
 dist = {}
