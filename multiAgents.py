@@ -348,10 +348,13 @@ def riskAwareEvaluationFunction(currentGameState: GameState):
     """
     Risk-aware evaluation function.
 
-    DESCRIPTION: Extension of betterEvaluationFunction:
-        1. Add a risk multiplier that decreases as the number of remaining food decreases.
-        2. Penalizes states with fewer legal moves when ghosts are nearby.
-        3. Penalizes states where Pacman is close to multiple active ghosts.
+    DESCRIPTION: An advanced evaluation function that combines greedy food-seeking 
+    behavior (guided by BFS shortest-path) with a dynamic risk management system. 
+    Key features include:
+        1. Dynamic Risk Tolerance: Pacman becomes more willing to take risks as the number of remaining food pellets decreases.
+        2. Non-linear Proximity Penalty: Uses inverse square distance to sharply penalize close encounters with active ghosts.
+        3. Trap & Sandwich Detection: Heavily penalizes states with low mobility near ghosts or being flanked by multiple ghosts.
+        4. Scared Ghost 'Waking-up' Risk: Prevents Pacman from chasing scared ghosts if the timer is about to expire.
     """
 
     pos = currentGameState.getPacmanPosition()
@@ -382,6 +385,7 @@ def riskAwareEvaluationFunction(currentGameState: GameState):
     score -= 10 * numFood # Phạt dựa trên số lượng hạt đậu còn lại
     score -= 20 * len(capsules) # Phạt nhiều hơn đối với capsule
 
+    risk_penalty = 0
     active_ghost_dist = []
 
     for gs in ghostStates:
@@ -392,31 +396,33 @@ def riskAwareEvaluationFunction(currentGameState: GameState):
         if gs.scaredTimer == 0:
             active_ghost_dist.append(d)
             if d <= 1:
-                score -= 9999
-            elif d <= 5:
-                score -= (2.0 / d) * risk_multiplier # Mức phạt tùy vào giai đoạn game
+                risk_penalty += 999999 # Rủi ro chết người -> Phạt cứng không nhân multiplier
+            elif d <= 4:
+                risk_penalty += (50.0 / (d ** 2)) * risk_multiplier # Rủi ro tăng mạnh khi ma ở gần, giảm theo bình phương khoảng cách
         else:
-            if d <= gs.scaredTimer:
+            if gs.scaredTimer < 3 and d <= 2:
+                risk_penalty += 500.0 # Rủi ro chết người -> Phạt cứng không nhân multiplier
+            elif d <= gs.scaredTimer:
                 score += 100.0 / (d + 0.1)
 
     active_ghost_dist.sort()
-
-    legalMoves = currentGameState.getLegalActions(0)
+    legalMoves = currentGameState.getLegalActions(0) # 0 là Pacman
     numMoves = len(legalMoves)
 
-    if numMoves <= 2:
-        if active_ghost_dist:
-            closest_ghost = active_ghost_dist[0]
-            if closest_ghost <= 3:
-                score -= 500 * risk_multiplier # Rủi ro có ma ở gần và ít lựa chọn di chuyển
+    if active_ghost_dist:
+        closest_ghost = active_ghost_dist[0]
+        
+        # Ngõ cụt
+        if numMoves <= 2 and closest_ghost <= 3:
+            risk_penalty += 500.0 * risk_multiplier # Phạt nhiều nếu ít lựa chọn và ma ở gần
+            
+        # Bị kẹp giữa nhiều ma
+        if len(active_ghost_dist) >= 2:
+            second_closest = active_ghost_dist[1]
+            if closest_ghost < 5 and second_closest < 5:
+                risk_penalty += 1000.0 * risk_multiplier 
 
-    if len(active_ghost_dist) >= 2:
-        closest = active_ghost_dist[0]
-        second_closest = active_ghost_dist[1]
-        if closest < 5 and second_closest < 5:
-            score -= 1000 * risk_multiplier # Rủi ro bị kẹp giữa 2 con ma
-
-    return score
+    return score - risk_penalty
 
 # Helper function for betterEvaluationFunction
 dist = {}
