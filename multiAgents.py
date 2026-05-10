@@ -346,11 +346,12 @@ def betterEvaluationFunction(currentGameState: GameState):
     
 def riskAwareEvaluationFunction(currentGameState: GameState):
     """
-    Extended risk-aware evaluation function.
+    Risk-aware evaluation function.
 
-    DESCRIPTION: Extension of betterEvaluationFunction with additional risk factors:
-        1. Penalizes states with fewer legal moves when ghosts are nearby.
-        2. Penalizes states where Pacman is close to multiple active ghosts.
+    DESCRIPTION: Extension of betterEvaluationFunction:
+        1. Add a risk multiplier that decreases as the number of remaining food decreases.
+        2. Penalizes states with fewer legal moves when ghosts are nearby.
+        3. Penalizes states where Pacman is close to multiple active ghosts.
     """
 
     pos = currentGameState.getPacmanPosition()
@@ -385,7 +386,7 @@ def riskAwareEvaluationFunction(currentGameState: GameState):
 
     for gs in ghostStates:
         ghostPos = gs.getPosition()
-        ghostCell = (int(ghostPos[0]), int(ghostPos[1]))  # Tọa độ bằng số nguyên
+        ghostCell = (int(ghostPos[0]), int(ghostPos[1]))
         d = distMap.get(ghostCell, 999)
 
         if gs.scaredTimer == 0:
